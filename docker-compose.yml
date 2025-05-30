@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  anchor:
+    build: .
+    environment:
+      - OPENAI_API_KEY
+      - SRC_AWS_ACCESS_KEY_ID
+      - SRC_AWS_SECRET_ACCESS_KEY
+      - DEST_AWS_ACCESS_KEY_ID
+      - DEST_AWS_SECRET_ACCESS_KEY
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=DEBUG
+      # Ensure Terraformer sees credentials
+      - AWS_ACCESS_KEY_ID=${SRC_AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${SRC_AWS_SECRET_ACCESS_KEY}
+      # Disable EC2 metadata service lookups (not on EC2)
+      - AWS_EC2_METADATA_DISABLED=true
+    volumes:
+      - ./output:/output
+      - ./logs:/logs
+    command: ["--branch", "anchor/infra", "https://github.com/golubev/fastapi-advanced-rest-template.git"] 

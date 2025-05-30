@@ -1,0 +1,7 @@
+openai>=1.10.0
+GitPython>=3.1
+PyGithub>=2.1
+python-terraform>=0.10
+rich>=13.7
+tenacity>=8.2
+requests>=2.31 
