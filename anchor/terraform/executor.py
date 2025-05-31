@@ -14,9 +14,26 @@ class TerraformExecutor:
     def _run(self, args: list[str]) -> Dict[str, Any]:
         cmd = ["terraform", *args]
         env = os.environ.copy()
-        if "DEST_AWS_ACCESS_KEY_ID" in os.environ:
+        
+        # Only add credential variables for commands that actually use AWS
+        if args and args[0] in ["plan", "apply", "destroy", "refresh", "import"]:
+            # Add credential variables for these commands
+            var_args = []
+            if "DEST_AWS_ACCESS_KEY_ID" in os.environ:
+                var_args.extend(["-var", f"aws_access_key={os.environ['DEST_AWS_ACCESS_KEY_ID']}"])
+            if "DEST_AWS_SECRET_ACCESS_KEY" in os.environ:
+                var_args.extend(["-var", f"aws_secret_key={os.environ['DEST_AWS_SECRET_ACCESS_KEY']}"])
+            if "AWS_REGION" in os.environ:
+                var_args.extend(["-var", f"aws_region={os.environ.get('AWS_REGION', 'us-east-1')}"])
+            
+            # Insert var args after the command but before any other args
+            if var_args:
+                cmd = ["terraform", args[0]] + var_args + args[1:]
+            
+            # Also set AWS environment variables for provider authentication
             env["AWS_ACCESS_KEY_ID"] = os.environ["DEST_AWS_ACCESS_KEY_ID"]
             env["AWS_SECRET_ACCESS_KEY"] = os.environ["DEST_AWS_SECRET_ACCESS_KEY"]
+        
         proc = subprocess.run(cmd, cwd=self.working_dir, capture_output=True, text=True, env=env)
         return {
             "returncode": proc.returncode,
@@ -43,22 +60,4 @@ class TerraformExecutor:
         return result
 
     def apply(self, plan_file: str = "tfplan") -> Dict[str, Any]:
-        return self._run(["apply", "-input=false", plan_file])
-
-    def run(self, *args: str, cwd: str = None, capture_output: bool = True):
-        """Run terraform command with args."""
-        cmd = [self.terraform_bin] + list(args)
-        
-        # Use destination AWS credentials for terraform operations
-        env = os.environ.copy()
-        if "DEST_AWS_ACCESS_KEY_ID" in os.environ:
-            env["AWS_ACCESS_KEY_ID"] = os.environ["DEST_AWS_ACCESS_KEY_ID"]
-            env["AWS_SECRET_ACCESS_KEY"] = os.environ["DEST_AWS_SECRET_ACCESS_KEY"]
-        
-        return subprocess.run(
-            cmd,
-            cwd=cwd or os.getcwd(),
-            capture_output=capture_output,
-            text=True,
-            env=env,
-        ) 
+        return self._run(["apply", "-input=false", plan_file]) 

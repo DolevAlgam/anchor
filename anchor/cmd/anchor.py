@@ -8,9 +8,15 @@ from anchor.repo.git import GitRepo
 from anchor.workspace import Workspace
 from anchor.agent.core import AnchorAgent
 from anchor.terraform.terraformer import import_aws
+from ..constants import (
+    DEFAULT_MAX_ITERATIONS,
+    DEFAULT_BRANCH,
+    DEFAULT_AWS_REGION,
+    DEFAULT_LOG_LEVEL,
+)
 
 # Set up logging based on environment
-log_level = os.getenv("LOG_LEVEL", "INFO")
+log_level = os.getenv("LOG_LEVEL", DEFAULT_LOG_LEVEL)
 logging.basicConfig(
     level=getattr(logging, log_level),
     format="%(asctime)s %(levelname)s %(name)s: %(message)s"
@@ -21,25 +27,25 @@ LOGGER = logging.getLogger("anchor.cli")
 def parse_args():
     p = argparse.ArgumentParser(description="Anchor MVP runner")
     p.add_argument("repo_url", help="HTTPS URL of the git repo to clone")
-    p.add_argument("--branch", default="anchor/infra", help="Branch name to create")
+    p.add_argument("--branch", default=DEFAULT_BRANCH, help="Branch name to create")
     p.add_argument("--workdir", help="Optional workdir path (default tmp)")
-    p.add_argument("--max-iters", type=int, default=20)
+    p.add_argument("--max-iters", type=int, default=DEFAULT_MAX_ITERATIONS)
     return p.parse_args()
 
 
 def main():
     args = parse_args()
     
-    # Set AWS credentials for source account if provided separately
+    # Log which AWS accounts are configured
     if "SRC_AWS_ACCESS_KEY_ID" in os.environ:
-        os.environ["AWS_ACCESS_KEY_ID"] = os.environ["SRC_AWS_ACCESS_KEY_ID"]
-        os.environ["AWS_SECRET_ACCESS_KEY"] = os.environ["SRC_AWS_SECRET_ACCESS_KEY"]
-        LOGGER.info("Using source AWS account for discovery (SRC_AWS_*)")
+        LOGGER.info("Source AWS account configured for discovery (SRC_AWS_*)")
+    else:
+        LOGGER.warning("No source AWS credentials found (SRC_AWS_*)")
     
     if "DEST_AWS_ACCESS_KEY_ID" in os.environ:
         LOGGER.info("Destination AWS account configured for deployment (DEST_AWS_*)")
     else:
-        LOGGER.warning("No destination AWS credentials found - terraform operations will use source account")
+        LOGGER.warning("No destination AWS credentials found (DEST_AWS_*)")
     
     workdir = args.workdir or tempfile.mkdtemp(prefix="anchor_repo_")
     LOGGER.info("Cloning %s into %s", args.repo_url, workdir)
@@ -60,27 +66,27 @@ def main():
             LOGGER.warning("Terraformer import failed (code %s). Creating minimal config.", rc)
             # Create minimal terraform file so agent has something to work with
             main_tf = infra_dir / "main.tf"
-            main_tf.write_text('''terraform {
-  required_providers {
-    aws = {
+            main_tf.write_text(f'''terraform {{
+  required_providers {{
+    aws = {{
       source  = "hashicorp/aws"
       version = "~> 5.0"
-    }
-  }
-+}
-+
-+provider "aws" {
-+  region = var.aws_region
-+}
-+
-+variable "aws_region" {
-+  type    = string
-+  default = "us-east-1"
-+}
-+
-+# TODO: Add resources imported from source account
-+# Terraformer import failed - add resources manually
-+''')
+    }}
+  }}
+}}
+
+provider "aws" {{
+  region = var.aws_region
+}}
+
+variable "aws_region" {{
+  type    = string
+  default = "{DEFAULT_AWS_REGION}"
+}}
+
+# TODO: Add resources imported from source account
+# Terraformer import failed - add resources manually
+''')
             LOGGER.info("Created minimal main.tf as fallback")
 
     ws = Workspace(str(infra_dir))

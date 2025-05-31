@@ -138,7 +138,7 @@ $ LOG_LEVEL=DEBUG python -m anchor.cmd.anchor ...
 * Least-privilege IAM synthesis
 * Drift detection & cost diffing
 * UI dashboard & audit log
-
+* GitHub Actions IAM trust relationships for CI/CD deployments
 ---
 ## License
 
@@ -175,7 +175,7 @@ Follow these steps once in **Account 1** (the source environment). They create a
      --policy-arn arn:aws:iam::<acct_id>:policy/AnchorReadOnly
    aws iam create-access-key --user-name anchor_ro
    ```
-   _Console_: IAM → Users → **Add user** → “Access key ‑ Programmatic access” → skip console password → **Next** → **Attach existing policies** → search & tick **AnchorReadOnly** → create → download **Access key ID / Secret**.
+   _Console_: IAM → Users → **Add user** → "Access key ‑ Programmatic access" → skip console password → **Next** → **Attach existing policies** → search & tick **AnchorReadOnly** → create → download **Access key ID / Secret**.
 
    *Role path* — least privilege with STS:
    1. Create user `anchor_sts` with **no policies**. Generate access keys (CLI/local).  
@@ -208,5 +208,25 @@ Follow these steps once in **Account 1** (the source environment). They create a
    ```
 
 Repeat a similar process in **Account 2** (destination). For the MVP you will eventually attach broader (write) permissions or simply use an AdministratorAccess policy when comfortable.
+
+---
+## Recent Improvements
+
+- **Module Name Handling**: Trailing spaces in Terraform module and directory names are now automatically stripped, preventing validation errors.
+- **Error Handling**: The system now provides clear error messages for invalid AWS credentials and OpenAI API key issues. See Troubleshooting below.
+- **Constants and Configuration**: All AWS services scanned by Terraformer, as well as other defaults (region, branch, log level, etc.), are now defined in `anchor/constants.py` for maintainability and single-source-of-truth.
+- **Cleaner Codebase**: The agent and Terraformer reference these constants, reducing duplication and risk of inconsistency.
+
+---
+## Troubleshooting
+
+- **Invalid AWS Credentials**: If you see errors like `InvalidClientTokenId` or `InvalidAccessKeyId`, check your `.env.local` or environment variables for correct AWS keys.
+- **OpenAI API Key Error**: If you see `Incorrect API key provided`, ensure your `OPENAI_API_KEY` is valid and not expired.
+- **Module Directory Errors**: If you see `Unreadable module directory` or similar, ensure your AWS credentials are valid and that the source account has resources in the selected region.
+
+---
+## Configuration Defaults
+
+All default values (AWS region, branch, log level, max iterations, etc.) are now defined in `anchor/constants.py`. Update this file to change defaults globally.
 
 --- 

@@ -135,3 +135,20 @@ flowchart TD
   4. Executes returned tool calls
   5. Checks for completion
 - Memory buffer keeps last 50 observations for context
+
+## Recent Improvements
+
+- **Module/Directory Name Handling**: All module and directory names are now stripped of trailing spaces, preventing Terraform validation errors.
+- **Centralized Configuration**: All configuration defaults (AWS region, branch, log level, max iterations, AWS services for Terraformer, etc.) are now defined in `anchor/constants.py`.
+- **Improved Error Handling**: The system now provides clear error messages for invalid AWS credentials, OpenAI API key issues, and module directory problems.
+
+## Troubleshooting
+
+- **Invalid AWS Credentials**: Check your environment variables or `.env.local` for correct AWS keys if you see credential errors.
+- **OpenAI API Key Error**: Ensure your `OPENAI_API_KEY` is valid if you see authentication errors.
+- **Module Directory Errors**: If you see errors about unreadable module directories, check for valid credentials and resources in the source account.
+
+## Maintainability
+
+- All defaults and service lists are now in `anchor/constants.py` for a single source of truth.
+- The agent and Terraformer reference these constants, reducing duplication and improving maintainability.

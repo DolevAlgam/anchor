@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     unzip \
+    awscli \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Terraform
@@ -20,16 +21,6 @@ RUN curl -fsSL https://github.com/GoogleCloudPlatform/terraformer/releases/downl
 # Create working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY anchor/ ./anchor/
-
-# Set Python path
-ENV PYTHONPATH=/app
-
 # Create terraform plugin cache directory
 RUN mkdir -p /root/.terraform.d/plugins
 
@@ -39,4 +30,15 @@ RUN mkdir -p /root/.terraform.d/plugins/linux_amd64 && \
     unzip /tmp/aws.zip -d /root/.terraform.d/plugins/linux_amd64 && \
     rm /tmp/aws.zip
 
-ENTRYPOINT ["python", "-m", "anchor.cmd.anchor"] 
+# Set Python path
+ENV PYTHONPATH=/app
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code (moved to end for better caching)
+COPY anchor/ ./anchor/
+
+# Run anchor command
+ENTRYPOINT ["/bin/bash", "-c", "python -m anchor.cmd.anchor \"$@\"", "--"] 
