@@ -18,11 +18,14 @@ Anchor will:
 
 Input ‑ Environment variables
 
-| Variable | Description |
-|----------|-------------|
-| `REPO_URL` | HTTPS link to the Git repository |
-| `SRC_AWS_ACCESS_KEY_ID` / `SRC_AWS_SECRET_ACCESS_KEY` | Admin creds for source account |
-| `DEST_AWS_ACCESS_KEY_ID` / `DEST_AWS_SECRET_ACCESS_KEY` | Admin creds for destination account |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `REPO_URL` | HTTPS link to the Git repository | - |
+| `SRC_AWS_ACCESS_KEY_ID` / `SRC_AWS_SECRET_ACCESS_KEY` | Admin creds for source account | - |
+| `DEST_AWS_ACCESS_KEY_ID` / `DEST_AWS_SECRET_ACCESS_KEY` | Admin creds for destination account | - |
+| `AWS_REGION` | AWS region to operate in | us-east-1 |
+| `LOG_LEVEL` | Logging verbosity | INFO |
+| `OPENAI_API_KEY` | OpenAI API key for LLM | - |
 
 Output
 
@@ -118,6 +121,7 @@ Set `LOG_LEVEL=DEBUG` to see:
 - Terraform command outputs
 - Workspace snapshots at each iteration
 - Tool execution details
+- Directory structure and main.tf content
 
 ```bash
 # Docker
@@ -215,7 +219,8 @@ Repeat a similar process in **Account 2** (destination). For the MVP you will ev
 - **Module Name Handling**: Trailing spaces in Terraform module and directory names are now automatically stripped, preventing validation errors.
 - **Error Handling**: The system now provides clear error messages for invalid AWS credentials and OpenAI API key issues. See Troubleshooting below.
 - **Constants and Configuration**: All AWS services scanned by Terraformer, as well as other defaults (region, branch, log level, etc.), are now defined in `anchor/constants.py` for maintainability and single-source-of-truth.
-- **Cleaner Codebase**: The agent and Terraformer reference these constants, reducing duplication and risk of inconsistency.
+- **Enhanced Context**: Workspace snapshots now include directory structure and main.tf content for better LLM decision making.
+- **Memory Management**: Configurable memory buffer size for maintaining context between agent iterations.
 
 ---
 ## Troubleshooting
@@ -223,10 +228,21 @@ Repeat a similar process in **Account 2** (destination). For the MVP you will ev
 - **Invalid AWS Credentials**: If you see errors like `InvalidClientTokenId` or `InvalidAccessKeyId`, check your `.env.local` or environment variables for correct AWS keys.
 - **OpenAI API Key Error**: If you see `Incorrect API key provided`, ensure your `OPENAI_API_KEY` is valid and not expired.
 - **Module Directory Errors**: If you see `Unreadable module directory` or similar, ensure your AWS credentials are valid and that the source account has resources in the selected region.
+- **Memory Issues**: If the agent seems to lose context between iterations, check the `DEFAULT_MEMORY_ITEMS` setting in `constants.py`.
 
 ---
 ## Configuration Defaults
 
-All default values (AWS region, branch, log level, max iterations, etc.) are now defined in `anchor/constants.py`. Update this file to change defaults globally.
+All default values are defined in `anchor/constants.py`:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `DEFAULT_MAX_ITERATIONS` | 20 | Maximum number of agent iterations |
+| `DEFAULT_MODEL` | gpt-4 | OpenAI model to use |
+| `DEFAULT_MEMORY_ITEMS` | 100 | Number of observations to keep in memory |
+| `DEFAULT_AGENT_SLEEP` | 1 | Seconds between agent iterations |
+| `DEFAULT_BRANCH` | anchor/infra | Default branch name |
+| `DEFAULT_AWS_REGION` | us-east-1 | Default AWS region |
+| `DEFAULT_LOG_LEVEL` | INFO | Default logging level |
 
 --- 

@@ -32,7 +32,10 @@ flowchart TD
         WS1[Workspace.__init__]
         WS2[Workspace.snapshot]
         WS3[Workspace.temp]
+        WS4[Workspace._get_directory_structure]
+        WS5[Workspace._get_main_tf_content]
     end
+    class WS1,WS2,WS3,WS4,WS5 cls;
 
     %% ============== agent ==========
     subgraph agent/core.py
@@ -62,7 +65,7 @@ flowchart TD
     %% ============== terraform layer ==========
     subgraph terraform/executor.py
         TE1[TerraformExecutor.__init__]
-        TE2( _run )
+        TE2(_run)
         TE3(fmt)
         TE4(init)
         TE5(validate)
@@ -76,9 +79,18 @@ flowchart TD
         PS1(plan_stats)
     end
 
-    %% ============== probe ==========
-    subgraph probe/http.py
-        PR1(check_endpoint)
+    subgraph terraform/precheck.py
+        PC1(validate_aws_credentials)
+        PC2(validate_terraform_config)
+    end
+
+    %% ============== constants ==========
+    subgraph constants.py
+        C1[DEFAULT_MAX_ITERATIONS]
+        C2[DEFAULT_MODEL]
+        C3[DEFAULT_MEMORY_ITEMS]
+        C4[DEFAULT_AGENT_SLEEP]
+        C5[AWS_SERVICES]
     end
 
     %% ==== primary call edges =====
@@ -91,6 +103,8 @@ flowchart TD
     AG2 --> P1
     AG2 --> WS2
     AG2 --> T4
+    WS2 --> WS4
+    WS2 --> WS5
     WS2 --> TE3
     WS2 --> TE4
     WS2 --> TE5
@@ -100,8 +114,14 @@ flowchart TD
     T4 --> T1
     T4 --> T2
     T4 --> T3
-    AG2 -->|health check| PR1
     A2 -->|push & PR| RG4 --> GH1
+
+    %% ==== configuration edges =====
+    AG1 -->|uses| C1
+    AG1 -->|uses| C2
+    AG1 -->|uses| C3
+    AG2 -->|uses| C4
+    PC1 -->|uses| C5
 
     %% legend
     classDef note fill:#fffaf0,stroke:#999,stroke-dasharray: 5 5;
@@ -110,6 +130,33 @@ flowchart TD
 > Tip: Open this file in a Markdown viewer with Mermaid support (e.g. VS Code with "Markdown: Open Preview") to explore the interactive diagram. 
 
 ## Key Implementation Notes
+
+### Core Components
+
+1. **AnchorAgent**
+   - Manages the autonomous loop for Terraform deployment
+   - Uses OpenAI's API for decision making
+   - Maintains state through Memory class
+   - Configurable via constants (iterations, model, memory size)
+
+2. **Workspace**
+   - Manages the physical Terraform code location
+   - Provides directory structure and file content context
+   - Handles Terraform command execution through TerraformExecutor
+   - Supports temporary workspace creation for testing
+
+3. **Memory**
+   - Maintains a buffer of recent observations
+   - Configurable size via DEFAULT_MEMORY_ITEMS
+   - Used to provide context for LLM decisions
+
+4. **Constants**
+   - Centralized configuration in `constants.py`
+   - Defines defaults for:
+     - Agent behavior (iterations, sleep time)
+     - LLM configuration (model, memory size)
+     - AWS services for Terraformer
+     - Logging levels
 
 ### Docker Deployment
 - `Dockerfile` creates a container with Terraform, Terraformer, and all Python dependencies
@@ -127,28 +174,38 @@ flowchart TD
 - Credentials are passed via environment variables (SRC_* for discovery, DEST_* for deployment)
 
 ### Agent Loop
-- Iterates up to `--max-iters` times (default 20)
+- Iterates up to `DEFAULT_MAX_ITERATIONS` times
 - Each iteration:
   1. Snapshots workspace state (fmt, validate, plan)
-  2. Builds prompt with recent observations
-  3. Calls LLM with available tools
-  4. Executes returned tool calls
-  5. Checks for completion
-- Memory buffer keeps last 50 observations for context
+  2. Captures directory structure and main.tf content
+  3. Builds prompt with recent observations from memory
+  4. Calls LLM with available tools
+  5. Executes returned tool calls
+  6. Checks for completion
+  7. Sleeps for `DEFAULT_AGENT_SLEEP` seconds
+- Memory buffer keeps last N observations for context (configurable)
 
 ## Recent Improvements
 
 - **Module/Directory Name Handling**: All module and directory names are now stripped of trailing spaces, preventing Terraform validation errors.
-- **Centralized Configuration**: All configuration defaults (AWS region, branch, log level, max iterations, AWS services for Terraformer, etc.) are now defined in `anchor/constants.py`.
-- **Improved Error Handling**: The system now provides clear error messages for invalid AWS credentials, OpenAI API key issues, and module directory problems.
+- **Centralized Configuration**: All configuration defaults are now defined in `constants.py`.
+- **Improved Error Handling**: Clear error messages for invalid AWS credentials, OpenAI API key issues, and module directory problems.
+- **Enhanced Context**: Workspace snapshots now include directory structure and main.tf content for better LLM decision making.
 
 ## Troubleshooting
 
 - **Invalid AWS Credentials**: Check your environment variables or `.env.local` for correct AWS keys if you see credential errors.
 - **OpenAI API Key Error**: Ensure your `OPENAI_API_KEY` is valid if you see authentication errors.
 - **Module Directory Errors**: If you see errors about unreadable module directories, check for valid credentials and resources in the source account.
+- **Memory Issues**: If the agent seems to lose context, check the `DEFAULT_MEMORY_ITEMS` setting in `constants.py`.
 
 ## Maintainability
 
-- All defaults and service lists are now in `anchor/constants.py` for a single source of truth.
+- All defaults and service lists are now in `constants.py` for a single source of truth.
 - The agent and Terraformer reference these constants, reducing duplication and improving maintainability.
+- Clear separation of concerns between components:
+  - Agent handles decision making
+  - Workspace manages file operations
+  - Memory maintains context
+  - Tools execute actions
+  - Constants provide configuration
