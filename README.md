@@ -72,24 +72,36 @@ $ export SRC_AWS_ACCESS_KEY_ID=AKIA...
 $ export SRC_AWS_SECRET_ACCESS_KEY=...
 $ export DEST_AWS_ACCESS_KEY_ID=AKIA...
 $ export DEST_AWS_SECRET_ACCESS_KEY=...
+$ export AWS_REGION=us-east-1  # Optional, defaults to us-east-1
+
+# Create output and logs directories
+$ mkdir -p output logs
 
 # Run with Docker Compose
 $ docker-compose up --build
 
-# Or run directly with Docker
-$ docker build -t anchor:latest .
-$ docker run --rm \
-  -e OPENAI_API_KEY \
-  -e SRC_AWS_ACCESS_KEY_ID \
-  -e SRC_AWS_SECRET_ACCESS_KEY \
-  -e DEST_AWS_ACCESS_KEY_ID \
-  -e DEST_AWS_SECRET_ACCESS_KEY \
-  -e AWS_REGION=us-east-1 \
-  -e LOG_LEVEL=DEBUG \
-  anchor:latest \
-  --branch anchor/infra \
-  https://github.com/org/repo.git
+# Or run in detached mode
+$ docker-compose up -d --build
+
+# View logs
+$ docker-compose logs -f
+
+# Stop the container
+$ docker-compose down
 ```
+
+The Docker Compose setup includes:
+- Automatic environment variable passing
+- Volume mounts for output and logs
+- Python output unbuffering for better logging
+- Disabled EC2 metadata service lookups
+- Default branch and repository configuration
+
+You can customize the Docker Compose setup by:
+1. Modifying `docker-compose.yml` to change the target repository
+2. Setting environment variables in `.env.local` file
+3. Adjusting volume mounts for output and logs
+4. Changing the default branch name
 
 ### Local Python
 
