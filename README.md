@@ -142,7 +142,7 @@ $ LOG_LEVEL=DEBUG python -m anchor.cmd.anchor ...
 ---
 ## License
 
-Anchor is released under the MIT license. See `LICENSE` for details.
+Anchor is released under the Apache License 2.0. See `LICENSE` for details.
 
 ## AWS credential setup (read-only discovery)
 
